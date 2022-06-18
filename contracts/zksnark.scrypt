@@ -1,0 +1,49 @@
+import "pairing.scrypt";
+
+// point in G1
+struct G1Point {
+    int X;
+    int Y;
+}
+// type G1Point = Point;
+
+// point in G2: encoding of field elements is X[0] * z + X[1]
+struct G2Point {
+    int[2] X;
+    int[2] Y;
+}
+
+struct VerifyingKey {
+    G1Point alpha;
+    G2Point beta;
+    G2Point gamma;
+    G2Point delta;
+    G1Point[N_1] gamma_abc;
+}
+
+struct Proof {
+    G1Point a;
+    G2Point b;
+    G1Point c;
+}
+
+// zk-snark verification
+contract ZKSNARK {
+    // number of inputs
+    static const int N = 2;
+    // N + 1
+    static const int N_1 = 3;
+
+    public function verify(int[N] inputs, Proof proof, VerifyingKey vk) {
+        G1Point vk_x = vk.gamma_abc[0];
+        loop (N) : i {
+            G1Point p = EC.multByScalar(vk.gamma_abc[i + 1], inputs[i]);
+            vk_x = EC.addPoints(vk_x, p);
+        }
+
+        // pairing check
+        // FIXME: modular in FQ12
+        require(Pairing.pairing(proof.a, proof.b) == Pairing.pairing(vk.alpha, vk.beta) * 
+                Pairing.pairing(vk_x, vk.gamma) * Pairing.pairing(proof.c, vk.delta));
+    }
+}
